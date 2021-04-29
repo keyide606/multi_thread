@@ -10,6 +10,11 @@ import java.util.Arrays;
  */
 public class Main {
     public static void main(String[] args) {
+        /* 创建线程时候有一个变量stackSize,
+        在Thread的构造器中可以传入stackSize参数。
+        如果不传的话，默认是0。它的作用是控制jvm给线程分配栈内存的大小。
+        一般来说如果不指定,jvm默认分配为1M,指定后会影响JVM中创建线程的个数
+         */
         testCreateThreadGroup();
     }
 
