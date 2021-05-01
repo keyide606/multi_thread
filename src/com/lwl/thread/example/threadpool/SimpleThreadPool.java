@@ -22,6 +22,7 @@ public class SimpleThreadPool {
     private List<WorkerTask> workerTasks;
     private ThreadGroup threadGroup;
     private DiscardPolicy discardPolicy;
+    private volatile boolean destroyed;
 
     public SimpleThreadPool(int size, int taskQueueSize, DiscardPolicy discardPolicy) {
         this.size = size;
@@ -30,6 +31,7 @@ public class SimpleThreadPool {
         taskQueue = new LinkedList<>();
         threadGroup = new ThreadGroup(THREAD_GROUP_NAME);
         workerTasks = new ArrayList<>();
+        this.destroyed = false;
         init();
     }
 
@@ -54,18 +56,38 @@ public class SimpleThreadPool {
     }
 
     public void submit(Runnable runnable) {
-        if (runnable == null) {
-            System.out.println("不能提交空的任务");
-        } else {
+        if (destroyed) {
+            System.out.println("thread pool is shutdown,can't submit task");
+            return;
+        }
+        synchronized (taskQueue) {
             if (taskQueue.size() >= taskQueueSize) {
                 discardPolicy.discardTask();
-            }else {
-                synchronized (taskQueue) {
-                    taskQueue.offer(runnable);
-                    taskQueue.notifyAll();
+            }
+            taskQueue.offer(runnable);
+            taskQueue.notifyAll();
+        }
+
+    }
+
+    public void shutdown() throws InterruptedException {
+        while (!taskQueue.isEmpty()) {
+            Thread.sleep(1_000);
+        }
+        int taskSize = workerTasks.size();
+        while (taskSize > 0) {
+            for (WorkerTask worker : workerTasks) {
+                if (ThreadState.BLOCKED.equals(worker.threadState)) {
+                    worker.interrupt();
+                    worker.close();
+                    taskSize--;
+                } else {
+                    Thread.sleep(10);
                 }
             }
         }
+        this.destroyed = true;
+        System.out.println("thread pool shutdown.. ");
     }
 
     private enum ThreadState {
@@ -96,10 +118,16 @@ public class SimpleThreadPool {
                     }
                     runnable = taskQueue.poll();
                 }
-                this.threadState = ThreadState.RUNNING;
-                runnable.run();
-                this.threadState = ThreadState.FREE;
+                if (runnable != null){
+                    this.threadState = ThreadState.RUNNING;
+                    runnable.run();
+                    this.threadState = ThreadState.FREE;
+                }
             }
+        }
+
+        public void close() {
+            this.threadState = ThreadState.DEAD;
         }
     }
 
