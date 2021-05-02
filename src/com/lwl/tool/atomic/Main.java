@@ -1,6 +1,9 @@
 package com.lwl.tool.atomic;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicStampedReference;
 import java.util.stream.IntStream;
 
 /**
@@ -9,7 +12,7 @@ import java.util.stream.IntStream;
  */
 public class Main {
     public static void main(String[] args) throws InterruptedException {
-        testCompareAndSetLock();
+        testAtomicStampedReference();
     }
 
 
@@ -61,18 +64,120 @@ public class Main {
 
 
     static void testAtomicBoolean() {
+        AtomicBoolean atomicBoolean = new AtomicBoolean();
+        System.out.println(atomicBoolean.get());
+        System.out.println(atomicBoolean.compareAndSet(false, true));
+    }
+
+    // 测试AtomicReference
+    static void testAtomicReference() throws InterruptedException {
+
+        // 多线程去对会员卡中少于20元的账户进行充值活动
+        /*
+        1.线程1 察觉到账户A中的余额为10元，准备充值,突然cpu切换到线程B
+        2.线程2 察觉到账户A中的余额为10元，对其充值,然后为30元
+        3.线程3 察觉到账户A中的钱大于20元,然后消费20元，变为10元
+        4.对于线程A来说,金钱从10-30-10貌似没变，然后准备充值,但是实际不应该充值，ABA问题的困扰
+        使用AtomicStampedReference
+
+         */
+        AtomicReference<Integer> money = new AtomicReference<>(10);
+
+        new Thread(() -> {
+            Integer m = money.get();
+            if (m < 20) {
+                try {
+                    Thread.sleep(5_000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if (money.compareAndSet(m, m + 20)) {
+                    System.out.println(Thread.currentThread().getName() + "充值了20元");
+                }
+            }
+        }, "A").start();
+
+        // 一个线程不断消耗会员卡中的钱
+        new Thread(() -> {
+            while (true) {
+                Integer m = money.get();
+                if (m > 20) {
+                    if (money.compareAndSet(m, m - 20)) {
+                        System.out.println(Thread.currentThread().getName() + "消费了20元");
+                    }
+                }
+                try {
+                    Thread.sleep(1_000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+        // 一个线程不断消耗会员卡中的钱
+        new Thread(() -> {
+            Integer m = money.get();
+            if (m < 20) {
+                if (money.compareAndSet(m, m + 20)) {
+                    System.out.println(Thread.currentThread().getName() + "充值了20元");
+                }
+            }
+        }, "B").start();
+    }
+
+
+    static void testAtomicStampedReference() {
+        AtomicStampedReference<Integer> money = new AtomicStampedReference<>(10, 0);
+        new Thread(() -> {
+            int[] stamped = new int[1];
+            Integer m = money.get(stamped);
+            if (m < 20) {
+                try {
+                    Thread.sleep(5_000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if (money.compareAndSet(m, m + 20, stamped[0], stamped[0] + 1)) {
+                    System.out.println(Thread.currentThread().getName() + "充值了20元");
+                } else {
+                    System.out.println(Thread.currentThread().getName() + "失败了,m=" + m);
+                }
+            }
+        }, "A").start();
+
+        // 一个线程不断消耗会员卡中的钱
+        new Thread("consumer") {
+            @Override
+            public void run() {
+                while (true) {
+                    int[] stamped = new int[1];
+                    Integer m = money.get(stamped);
+                    if (m > 20) {
+                        if (money.compareAndSet(m, m - 20, stamped[0], stamped[0] + 1)) {
+                            System.out.println(Thread.currentThread().getName() + "消费了20元");
+                        }
+                    }
+                    try {
+                        Thread.sleep(1_000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }.start();
+
+
+        new Thread(() -> {
+            int[] stamped = new int[1];
+            Integer m = money.get(stamped);
+            if (m < 20) {
+                if (money.compareAndSet(m, m + 20, stamped[0], stamped[0] + 1)) {
+                    System.out.println(Thread.currentThread().getName() + "充值了20元");
+                }
+            }
+        }, "B").start();
 
     }
 
-    static void testAtomicDouble() {
 
-    }
-
-    static void testAtomicFloat() {
-
-    }
-
-    static void testAtomicCharacter() {
-
-    }
 }
