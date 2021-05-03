@@ -1,5 +1,6 @@
 package com.lwl.tool.atomic;
 
+
 import java.util.concurrent.atomic.*;
 import java.util.stream.IntStream;
 
@@ -9,7 +10,7 @@ import java.util.stream.IntStream;
  */
 public class Main {
     public static void main(String[] args) throws InterruptedException {
-        testAtomicIntegerArray();
+        testAtomicIntegerFieldUpdater();
     }
 
 
@@ -193,4 +194,29 @@ public class Main {
         System.out.println(array.get(5));
     }
 
+    // 对象中int类型的原子操作为原子性,可以节约内存但是通常我们不会在乎那些内存
+    static void testAtomicIntegerFieldUpdater() throws InterruptedException {
+        AtomicIntegerFieldUpdater<SimpleObject> updater = AtomicIntegerFieldUpdater.newUpdater(SimpleObject.class, "i");
+
+        SimpleObject simpleObject = new SimpleObject();
+
+        IntStream.rangeClosed(1, 10).forEach(i -> new Thread(() -> {
+            for (int j = 0; j < 20; j++) {
+                System.out.println(updater.getAndIncrement(simpleObject));
+            }
+        }).start());
+
+        Thread.sleep(5_000);
+        System.out.println(simpleObject.i);
+    }
+
+
+    private static class SimpleObject {
+        // 使用AtomicIntegerFieldUpdater注意点,
+        /*
+        1.变量必须用volatile修饰
+        2.注意变量的访问限制
+         */
+        volatile int i;
+    }
 }
