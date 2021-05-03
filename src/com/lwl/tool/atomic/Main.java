@@ -1,9 +1,6 @@
 package com.lwl.tool.atomic;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.AtomicStampedReference;
+import java.util.concurrent.atomic.*;
 import java.util.stream.IntStream;
 
 /**
@@ -12,7 +9,7 @@ import java.util.stream.IntStream;
  */
 public class Main {
     public static void main(String[] args) throws InterruptedException {
-        testAtomicStampedReference();
+        testAtomicIntegerArray();
     }
 
 
@@ -179,5 +176,21 @@ public class Main {
 
     }
 
+    // 其实是对数组中的元素的操作是原子性的,AtomicLongArray和AtomicReferenceArray类似
+    static void testAtomicIntegerArray() throws InterruptedException {
+
+        AtomicIntegerArray array = new AtomicIntegerArray(new int[10]);
+
+        System.out.println(array.get(5));
+
+        IntStream.rangeClosed(1, 10).forEach(i -> new Thread(() -> {
+            for (int j = 0; j < 20; j++) {
+                System.out.println(array.getAndIncrement(5));
+            }
+        }).start());
+
+        Thread.sleep(2_000);
+        System.out.println(array.get(5));
+    }
 
 }
