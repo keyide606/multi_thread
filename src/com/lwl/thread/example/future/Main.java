@@ -24,4 +24,16 @@ public class Main {
         Thread.sleep(10000);
         System.out.println(future.get());
     }
+
+    static void testAddConsumer() {
+        FutureService service = new FutureService();
+        service.submit(() -> {
+            try {
+                Thread.sleep(10_000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return "已经完成了";
+        }, s -> System.out.println("老板我再完了,结果为:" + s));
+    }
 }
