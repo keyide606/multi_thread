@@ -1,6 +1,7 @@
 package com.lwl.thread.example.threadpool;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -112,6 +113,23 @@ public class SimpleThreadPool extends Thread {
                     createWorkTask(THREAD_PREFIX + i);
                 }
                 System.out.println("线程扩容,currentSize=" + workerTasks.size());
+            } else if (taskQueue.isEmpty() && workerTasks.size() > active) {
+                // 进行缩容,缩小到active大小
+                int releaseSize = workerTasks.size() - active;
+                Iterator<WorkerTask> it = workerTasks.iterator();
+                while (it.hasNext()) {
+                    if (releaseSize <= 0) {
+                        break;
+                    }
+                    WorkerTask thread = it.next();
+                    if (thread.threadState.equals(ThreadState.BLOCKED)) {
+                        thread.interrupt();
+                        thread.close();
+                        it.remove();
+                        releaseSize--;
+                    }
+                }
+                System.out.println("线程池缩容,现在大小为:" + workerTasks.size());
             }
             try {
                 TimeUnit.SECONDS.sleep(1);
