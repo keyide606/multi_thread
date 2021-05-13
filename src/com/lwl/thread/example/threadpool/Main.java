@@ -14,18 +14,18 @@ public class Main {
 
     static void testSimpleThreadPool() throws InterruptedException {
         SimpleThreadPool simpleThreadPool = new SimpleThreadPool();
-
-        IntStream.range(0, 20).forEach(i -> {
+        simpleThreadPool.start();
+        IntStream.range(0, 50).forEach(i -> {
             simpleThreadPool.submit(() -> {
                 System.out.println(Thread.currentThread().getName() + "执行第" + i + "个任务");
                 try {
-                    Thread.sleep(10);
+                    Thread.sleep(2_000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             });
         });
-        Thread.sleep(10_000);
+        Thread.sleep(10_00000);
         System.out.println("任务全部执行完毕");
         simpleThreadPool.shutdown();
         simpleThreadPool.submit(() -> System.out.println("提交任务"));
